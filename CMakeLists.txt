@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# vcpkg should provide this via toolchain, but be explicit if needed
 find_package(imgui CONFIG REQUIRED)
 
 add_library(payload SHARED
