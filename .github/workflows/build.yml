@@ -17,23 +17,29 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install Ninja
+        run: choco install ninja -y
+
       - name: Setup vcpkg
-        uses: johnwason/vcpkg-action@v6
-        id: vcpkg
+        uses: actions/checkout@v4
         with:
-          triplet: x64-windows-static
-          token: ${{ github.token }}
-          cache: true
-          # force manifest install
-          do-install: true
+          repository: microsoft/vcpkg
+          path: vcpkg
+          ref: master
+
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.bat
+
+      - name: Install dependencies
+        run: ./vcpkg/vcpkg.exe install --triplet x64-windows-static
+        # reads vcpkg.json automatically (manifest mode)
 
       - name: Configure
         run: |
           cmake -B build -G Ninja `
-            -DCMAKE_TOOLCHAIN_FILE=${{ steps.vcpkg.outputs.toolchain }} `
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DCMAKE_BUILD_TYPE=Release `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
-            -DCMAKE_PREFIX_PATH=${{ steps.vcpkg.outputs.install-root }}/installed/x64-windows-static
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static
 
       - name: Build
         run: cmake --build build --parallel
