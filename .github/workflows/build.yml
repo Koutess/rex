@@ -24,13 +24,16 @@ jobs:
           triplet: x64-windows-static
           token: ${{ github.token }}
           cache: true
+          # force manifest install
+          do-install: true
 
       - name: Configure
         run: |
           cmake -B build -G Ninja `
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.vcpkg.outputs.toolchain }} `
             -DCMAKE_BUILD_TYPE=Release `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_PREFIX_PATH=${{ steps.vcpkg.outputs.install-root }}/installed/x64-windows-static
 
       - name: Build
         run: cmake --build build --parallel
