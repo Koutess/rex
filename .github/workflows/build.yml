@@ -11,34 +11,38 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup vcpkg
         uses: johnwason/vcpkg-action@v6
+        id: vcpkg
         with:
-          pkgs: imgui
+          # No package list here – manifest mode reads vcpkg.json
           triplet: x64-windows-static
           token: ${{ github.token }}
           cache: true
 
       - name: Configure
         run: |
-          cmake -B build -G "Visual Studio 17 2022" -A x64 ^
-            -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake ^
-            -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.vcpkg.outputs.toolchain }} `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --parallel
 
-      - name: Upload
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rex-${{ github.sha }}
           path: |
             build/Release/rex.exe
             build/Release/payload.dll
+          if-no-files-found: error
 
-      - name: Release assets
+      - name: Attach to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
