@@ -58,19 +58,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
 
     // 5. Give the payload time to start the pipe server
-    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
-    // 6. Connect to the named pipe
+    // 6. Connect to the named pipe (15 s timeout)
     static rex::PipeClient client;
-    if (!client.connect()) {
-        MessageBoxW(nullptr, L"pipe connect failed", L"rex", MB_ICONERROR);
+    if (!client.connect(rex::PIPE_NAME, 15000)) {
+        MessageBoxW(nullptr,
+                    L"pipe connect failed – check rex_payload.log next to RobloxPlayerBeta.exe",
+                    L"rex", MB_ICONERROR);
         return 1;
     }
 
     g_client   = &client;
     g_attached = true;
 
-    // 7. Background reader thread (uses global g_client – no capture)
+    // 7. Background reader thread (uses global g_client)
     std::thread([] {
         while (g_attached && g_client) {
             auto pkt = g_client->read_packet();
