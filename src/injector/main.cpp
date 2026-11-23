@@ -70,10 +70,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     g_client   = &client;
     g_attached = true;
 
-    // 7. Background reader thread – keeps g_output updated
-    std::thread([&client] {
-        while (g_attached) {
-            auto pkt = client.read_packet();
+    // 7. Background reader thread (uses global g_client – no capture)
+    std::thread([] {
+        while (g_attached && g_client) {
+            auto pkt = g_client->read_packet();
             if (!pkt) {
                 g_attached = false;
                 break;
