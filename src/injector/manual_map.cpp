@@ -33,7 +33,7 @@ static DWORD WINAPI remote_stub(ManualMapData* pData) {
     auto _GetProcAddress = pData->pGetProcAddress;
 
     // ----- Relocations -----
-    BYTE* delta = pBase - reinterpret_cast<BYTE*>(pOpt->ImageBase);
+    ptrdiff_t delta = pBase - reinterpret_cast<BYTE*>(static_cast<uintptr_t>(pOpt->ImageBase));
     if (delta && pOpt->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size) {
         auto* pReloc = reinterpret_cast<IMAGE_BASE_RELOCATION*>(
             pBase + pOpt->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
@@ -46,7 +46,7 @@ static DWORD WINAPI remote_stub(ManualMapData* pData) {
                 if ((*pRelative >> 12) == IMAGE_REL_BASED_DIR64) {
                     *reinterpret_cast<UINT_PTR*>(
                         pBase + pReloc->VirtualAddress + (*pRelative & 0xFFF)) +=
-                        reinterpret_cast<UINT_PTR>(delta);
+                        static_cast<UINT_PTR>(delta);
                 }
             }
             pReloc = reinterpret_cast<IMAGE_BASE_RELOCATION*>(
@@ -105,7 +105,7 @@ static DWORD WINAPI remote_stub(ManualMapData* pData) {
 #pragma optimize("", on)
 #pragma runtime_checks("", restore)
 
-// We need the exact size of the stub.  This is a safe upper bound.
+// Safe upper bound for the stub size
 static constexpr size_t STUB_SIZE = 0x2000;
 
 ManualMapResult manual_map(HANDLE hProcess, const std::vector<uint8_t>& image) {
@@ -184,7 +184,6 @@ ManualMapResult manual_map(HANDLE hProcess, const std::vector<uint8_t>& image) {
         return res;
     }
 
-    // Wait longer – some machines are slow
     WaitForSingleObject(hThread, 20000);
     CloseHandle(hThread);
 
@@ -195,7 +194,6 @@ ManualMapResult manual_map(HANDLE hProcess, const std::vector<uint8_t>& image) {
     VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
 
     if (result_data.status != 0) {
-        // DllMain was not called successfully
         VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
         return res;
     }
