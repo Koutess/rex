@@ -3,7 +3,6 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <optional>
-#include <string>
 
 namespace rex {
 std::optional<DWORD> find_roblox() {
