@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Injector executable
-add_executable(rex
+add_executable(rex WIN32
     src/injector/main.cpp
     src/injector/manual_map.cpp
     src/injector/ui.cpp
