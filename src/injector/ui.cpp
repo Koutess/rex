@@ -8,7 +8,7 @@ extern std::string g_script;
 extern rex::PipeClient* g_client;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    static HWND hEdit, hBtn;
+    static HWND hEdit, hBtn, hStatus;
     
     switch (msg) {
         case WM_CREATE: {
@@ -16,6 +16,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                   10, 10, 560, 300, hwnd, nullptr, nullptr, nullptr);
             hBtn = CreateWindowW(L"BUTTON", L"Execute", WS_CHILD | WS_VISIBLE,
                                  10, 320, 100, 30, hwnd, (HMENU)1, nullptr, nullptr);
+            hStatus = CreateWindowW(L"STATIC", L"Attached", WS_CHILD | WS_VISIBLE,
+                                    120, 320, 100, 30, hwnd, nullptr, nullptr, nullptr);
             break;
         }
         case WM_COMMAND: {
