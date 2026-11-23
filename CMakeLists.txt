@@ -1,31 +1,35 @@
 cmake_minimum_required(VERSION 3.20)
-project(rex LANGUAGES CXX)
+project(rex_luau_runner LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Injector executable
-add_executable(rex WIN32
-    src/injector/main.cpp
-    src/injector/manual_map.cpp
-    src/injector/ui.cpp
-    src/common/process.hpp
-    src/common/file_utils.hpp
-    src/common/pipe.hpp
-    src/common/protocol.hpp
+include(FetchContent)
+set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LUAU_BUILD_WEB OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    luau
+    GIT_REPOSITORY https://github.com/luau-lang/luau.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(luau)
+
+add_executable(luau_runner
+    src/runner/luau_runner.hpp
+    src/runner/luau_runner.cpp
+    src/runner/main.cpp
 )
 
-target_include_directories(rex PRIVATE src)
-
-# Payload DLL
-add_library(payload SHARED
-    src/payload/payload.cpp
-    src/common/pipe.hpp
-    src/common/protocol.hpp
+target_include_directories(luau_runner PRIVATE
+    src/runner
+    ${luau_SOURCE_DIR}/VM/include
+    ${luau_SOURCE_DIR}/Compiler/include
 )
 
-target_include_directories(payload PRIVATE src)
-
-# Set output names
-set_target_properties(rex PROPERTIES OUTPUT_NAME "rex")
-set_target_properties(payload PROPERTIES OUTPUT_NAME "payload")
+target_link_libraries(luau_runner PRIVATE
+    Luau.Compiler
+    Luau.VM
+)
