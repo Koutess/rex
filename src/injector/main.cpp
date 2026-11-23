@@ -53,7 +53,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     CloseHandle(hProc);
 
     if (!map.success) {
-        MessageBoxW(nullptr, L"manual map failed", L"rex", MB_ICONERROR);
+        MessageBoxW(nullptr,
+                    L"manual map failed – DllMain never ran or returned FALSE",
+                    L"rex", MB_ICONERROR);
         return 1;
     }
 
