@@ -115,4 +115,124 @@ static DWORD find_hijackable_thread(DWORD pid) {
                     break;
                 }
             }
-        } while (Thread32Next(s
+        } while (Thread32Next(snap, &te));
+    }
+    CloseHandle(snap);
+    return tid;
+}
+
+// -------------------- Public API --------------------
+ManualMapResult manual_map(HANDLE hProcess, DWORD pid, const std::vector<uint8_t>& image) {
+    ManualMapResult res{};
+    if (image.size() < sizeof(IMAGE_DOS_HEADER)) return res;
+    
+    auto* pDos = (const IMAGE_DOS_HEADER*)image.data();
+    if (pDos->e_magic != IMAGE_DOS_SIGNATURE) return res;
+    
+    auto* pNt = (const IMAGE_NT_HEADERS*)(image.data() + pDos->e_lfanew);
+    if (pNt->Signature != IMAGE_NT_SIGNATURE) return res;
+    
+    SIZE_T image_size = pNt->OptionalHeader.SizeOfImage;
+    BYTE* remote_base = (BYTE*)VirtualAllocEx(hProcess, nullptr, image_size,
+                                              MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!remote_base) return res;
+    
+    // Write headers + sections
+    if (!WriteProcessMemory(hProcess, remote_base, image.data(),
+                            pNt->OptionalHeader.SizeOfHeaders, nullptr)) {
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    auto* pSec = IMAGE_FIRST_SECTION(const_cast<IMAGE_NT_HEADERS*>(pNt));
+    for (WORD i = 0; i < pNt->FileHeader.NumberOfSections; ++i, ++pSec) {
+        if (pSec->SizeOfRawData == 0) continue;
+        if (!WriteProcessMemory(hProcess, remote_base + pSec->VirtualAddress,
+                                image.data() + pSec->PointerToRawData,
+                                pSec->SizeOfRawData, nullptr)) {
+            VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+            return res;
+        }
+    }
+    
+    // Prepare mapping data + stub
+    ManualMapData data{};
+    data.pLoadLibraryA   = LoadLibraryA;
+    data.pGetProcAddress = GetProcAddress;
+    data.pBase           = remote_base;
+    data.status          = 0xFFFFFFFF;
+    
+    SIZE_T total = sizeof(data) + STUB_SIZE;
+    void* remote_data = VirtualAllocEx(hProcess, nullptr, total,
+                                       MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!remote_data) {
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    WriteProcessMemory(hProcess, remote_data, &data, sizeof(data), nullptr);
+    WriteProcessMemory(hProcess, (BYTE*)remote_data + sizeof(data),
+                       (const void*)&remote_stub, STUB_SIZE, nullptr);
+    
+    // ----- Thread hijack -----
+    DWORD tid = find_hijackable_thread(pid);
+    if (!tid) {
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    HANDLE hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, tid);
+    if (!hThread) {
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    SuspendThread(hThread);
+    CONTEXT ctx{};
+    ctx.ContextFlags = CONTEXT_FULL;
+    if (!GetThreadContext(hThread, &ctx)) {
+        ResumeThread(hThread);
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    // Save original RIP so we can return later if desired
+    ctx.Rip = (DWORD64)((BYTE*)remote_data + sizeof(data));
+    ctx.Rcx = (DWORD64)remote_data;          // first argument (x64 calling convention)
+    // Align stack to 16 bytes
+    ctx.Rsp = (ctx.Rsp - 0x100) & ~0xF;      
+    
+    if (!SetThreadContext(hThread, &ctx)) {
+        ResumeThread(hThread);
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    ResumeThread(hThread);
+    CloseHandle(hThread);
+    
+    // Give the stub time to finish
+    Sleep(2000);
+    
+    // Read status back
+    ManualMapData result{};
+    ReadProcessMemory(hProcess, remote_data, &result, sizeof(result), nullptr);
+    
+    VirtualFreeEx(hProcess, remote_data, 0, MEM_RELEASE);
+    
+    if (result.status != 0) {
+        VirtualFreeEx(hProcess, remote_base, 0, MEM_RELEASE);
+        return res;
+    }
+    
+    res.success     = true;
+    res.remote_base = (uintptr_t)remote_base;
+    return res;
+}
+} // namespace rex
