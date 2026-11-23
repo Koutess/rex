@@ -1,6 +1,8 @@
 // src/injector/ui.cpp
 #include <windows.h>
 #include <string>
+#include <atomic>
+#include "../common/pipe.hpp"
 
 extern std::atomic<bool> g_attached;
 extern std::string g_output;
