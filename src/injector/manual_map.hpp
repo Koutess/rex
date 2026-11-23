@@ -7,12 +7,11 @@
 namespace rex {
 
 struct ManualMapResult {
-    bool success = false;
+    bool     success     = false;
     uintptr_t remote_base = 0;
 };
 
-// Full manual map: allocate, copy sections, relocate, resolve imports, TLS, call DllMain.
-// No LoadLibrary. Module never appears in PEB module list if caller also unlinks (done inside payload).
-ManualMapResult manual_map(HANDLE hProcess, const std::vector<uint8_t>& dll_image);
+// Manual map using thread hijacking (no CreateRemoteThread)
+ManualMapResult manual_map(HANDLE hProcess, DWORD pid, const std::vector<uint8_t>& dll_image);
 
 } // namespace rex
