@@ -9,7 +9,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_calling, LPVOID lpRes
     if (ul_reason_for_calling == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(hModule);
         
-        CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+        // Capture hModule explicitly in the lambda
+        CreateThread(nullptr, 0, [hModule](LPVOID) -> DWORD {
             rex::PipeServer server;
             if (!server.create(rex::PIPE_NAME)) {
                 return 1;
