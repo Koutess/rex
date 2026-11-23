@@ -11,6 +11,7 @@ add_library(payload SHARED
     src/payload/dllmain.cpp
     src/payload/script_runner.cpp
     src/payload/evasion.cpp
+    src/payload/patterns.cpp
 )
 target_include_directories(payload PRIVATE src)
 target_compile_definitions(payload PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
