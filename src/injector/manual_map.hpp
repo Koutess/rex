@@ -5,13 +5,10 @@
 #include <cstdint>
 
 namespace rex {
-
 struct ManualMapResult {
-    bool     success     = false;
+    bool success = false;
     uintptr_t remote_base = 0;
 };
 
-// Manual map using thread hijacking (no CreateRemoteThread)
-ManualMapResult manual_map(HANDLE hProcess, DWORD pid, const std::vector<uint8_t>& dll_image);
-
+ManualMapResult manual_map(HANDLE hProcess, DWORD pid, const std::vector<uint8_t>& image);
 } // namespace rex
